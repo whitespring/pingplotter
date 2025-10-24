@@ -167,7 +167,7 @@ psql -h 192.168.4.44 -p 5432 -U postgres -d pingplot -c "SELECT version();"
 
 Check `backend/.env` has correct credentials:
 ```
-DATABASE_URL=postgresql://postgres:***REMOVED***@192.168.4.44:5432/pingplot
+DATABASE_URL=postgresql://postgres:netsaver23@192.168.4.44:5432/pingplot
 ```
 
 ### Schema Already Exists

@@ -235,7 +235,7 @@ const ANOMALY_THRESHOLDS = {
 ### Database Connection
 Set in `backend/.env` or it defaults to:
 ```
-DATABASE_URL=postgresql://postgres:***REMOVED***@192.168.4.44:5432/pingplot
+DATABASE_URL=postgresql://postgres:netsaver23@192.168.4.44:5432/pingplot
 ```
 
 ### Data Retention
