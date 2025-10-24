@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+*.env
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# PRD files
+PRD.json
+PRD_min.json
+
+# IDE
+.vscode/
+.idea/
+
+# Database
+*.db
+*.sqlite

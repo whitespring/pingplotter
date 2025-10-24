@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "start": "node monitor-backend.js",
+    "stop": "node -e \"require('child_process').exec(process.platform === 'win32' ? 'taskkill /F /IM node.exe /FI \\\"WINDOWTITLE eq monitor-backend*\\\"' : 'pkill -f \\\"node monitor-backend.js\\\"', (err) => { if (err && err.code !== 1) console.error(err); else console.log('Backend stopped'); })\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "pg": "^8.11.3"
+  }
+}

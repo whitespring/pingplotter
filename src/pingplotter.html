@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PingPlotter - Multi-Target Network Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2d2d2d;
+            padding: 15px 20px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.2em;
+            color: #fff;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #218838;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            padding: 4px 8px;
+            font-size: 0.8em;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .targets-section {
+            background: #252525;
+            border-bottom: 1px solid #444;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .targets-header {
+            background: #2d2d2d;
+            padding: 10px 20px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .targets-header h3 {
+            font-size: 0.9em;
+            color: #999;
+            text-transform: uppercase;
+        }
+        
+        .target-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: background 0.15s;
+        }
+        
+        .target-item:hover {
+            background: #2a2a2a;
+        }
+        
+        .target-item.selected {
+            background: #3a4a5a;
+            border-left: 4px solid #4a9eff;
+        }
+        
+        .target-item.good {
+            background: rgba(40, 167, 69, 0.1);
+        }
+        
+        .target-item.warning {
+            background: rgba(255, 193, 7, 0.1);
+        }
+        
+        .target-item.critical {
+            background: rgba(220, 53, 69, 0.1);
+        }
+        
+        .target-item.selected.good {
+            background: rgba(40, 167, 69, 0.2);
+        }
+        
+        .target-item.selected.warning {
+            background: rgba(255, 193, 7, 0.2);
+        }
+        
+        .target-item.selected.critical {
+            background: rgba(220, 53, 69, 0.2);
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .status-dot.good {
+            background: #28a745;
+            box-shadow: 0 0 8px #28a745;
+        }
+        
+        .status-dot.warning {
+            background: #ffc107;
+            box-shadow: 0 0 8px #ffc107;
+        }
+        
+        .status-dot.critical {
+            background: #dc3545;
+            box-shadow: 0 0 8px #dc3545;
+        }
+        
+        .target-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .target-name {
+            font-weight: 600;
+            font-size: 1em;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .target-stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 4px;
+            font-size: 0.85em;
+        }
+        
+        .stat {
+            color: #999;
+        }
+        
+        .stat strong {
+            color: #fff;
+            margin-left: 4px;
+        }
+        
+        .target-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .add-target-form {
+            padding: 15px 20px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #444;
+            display: none;
+        }
+        
+        .add-target-form.active {
+            display: block;
+        }
+        
+        .add-target-form input {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            width: 300px;
+            margin-right: 10px;
+        }
+        
+        .status-bar {
+            background: #252525;
+            padding: 8px 20px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            gap: 30px;
+            font-size: 0.85em;
+        }
+        
+        .status-item {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .status-item .label {
+            color: #999;
+        }
+        
+        .status-item .value {
+            color: #fff;
+            font-weight: 600;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 380px);
+        }
+        
+        .traceroute-section {
+            flex: 1;
+            overflow: auto;
+            border-bottom: 1px solid #444;
+        }
+        
+        .traceroute-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+        }
+        
+        .traceroute-table thead {
+            position: sticky;
+            top: 0;
+            background: #2d2d2d;
+            z-index: 10;
+        }
+        
+        .traceroute-table th {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid #444;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            font-size: 0.75em;
+        }
+        
+        .traceroute-table td {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .traceroute-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        
+        .traceroute-table tbody tr:hover {
+            background: #2a2a2a;
+        }
+        
+        .traceroute-table tbody tr.selected {
+            background: #3a4a5a;
+        }
+        
+        .hop-number {
+            width: 50px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .hop-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            text-align: center;
+            line-height: 20px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+        
+        .hop-indicator.good {
+            background: #28a745;
+            color: white;
+        }
+        
+        .hop-indicator.warning {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .hop-indicator.error {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .latency-bar-container {
+            min-width: 200px;
+            height: 24px;
+            position: relative;
+        }
+        
+        .latency-bar {
+            height: 100%;
+            border-radius: 2px;
+            position: relative;
+            transition: width 0.3s;
+        }
+        
+        .latency-bar.good {
+            background: linear-gradient(90deg, #28a745, #20c997);
+        }
+        
+        .latency-bar.warning {
+            background: linear-gradient(90deg, #ffc107, #fd7e14);
+        }
+        
+        .latency-bar.error {
+            background: linear-gradient(90deg, #dc3545, #c82333);
+        }
+        
+        .latency-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+        }
+        
+        .latency-marker {
+            flex: 1;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .timeline-section {
+            height: 280px;
+            background: #1a1a1a;
+            padding: 15px;
+            border-top: 1px solid #444;
+        }
+        
+        .timeline-header {
+            margin-bottom: 10px;
+            color: #999;
+            font-size: 0.85em;
+        }
+        
+        .chart-container {
+            height: 230px;
+            position: relative;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .pl-high {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            font-size: 0.75em;
+            color: #999;
+            padding: 10px 20px;
+            background: #252525;
+            border-top: 1px solid #444;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        
+        /* Tab Navigation */
+        .tab-nav {
+            background: #252525;
+            border-bottom: 1px solid #444;
+            display: flex;
+            padding: 0 20px;
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .tab-btn.active {
+            color: #4a9eff;
+            border-bottom-color: #4a9eff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Database Analysis Tab */
+        .db-filters {
+            background: #252525;
+            padding: 15px 20px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-size: 0.75em;
+            color: #999;
+            text-transform: uppercase;
+        }
+        
+        .filter-group select,
+        .filter-group input {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .db-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: #1a1a1a;
+        }
+        
+        .db-stat-card {
+            background: #252525;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        
+        .db-stat-card .label {
+            font-size: 0.85em;
+            color: #999;
+            margin-bottom: 8px;
+        }
+        
+        .db-stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4a9eff;
+        }
+        
+        .db-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            background: #1a1a1a;
+        }
+        
+        .chart-card {
+            background: #252525;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        
+        .chart-card h3 {
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 1em;
+        }
+        
+        .db-table-container {
+            background: #1a1a1a;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        
+        .db-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+        }
+        
+        .db-table thead {
+            background: #2d2d2d;
+            position: sticky;
+            top: 0;
+        }
+        
+        .db-table th {
+            padding: 12px 8px;
+            text-align: left;
+            color: #999;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75em;
+            border-bottom: 1px solid #444;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .db-table th:hover {
+            color: #4a9eff;
+        }
+        
+        .db-table th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.5;
+        }
+        
+        .db-table th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+        
+        .db-table th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+        
+        .db-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .db-table tr:hover {
+            background: #2a2a2a;
+        }
+        
+        .issue-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        
+        .issue-badge.timeout {
+            background: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+        }
+        
+        .issue-badge.high_latency {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PingPlotter - Multi-Target Network Analysis</h1>
+        <div class="controls">
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 0.75em; color: #999; text-transform: uppercase;">Connection Status</label>
+                <div style="display: flex; align-items: center; gap: 12px; background: #1a1a1a; padding: 6px 10px; border-radius: 4px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 0.75em; color: #666;">Backend:</span>
+                        <span id="backendStatus" style="font-size: 0.85em; color: #999; font-weight: 600;">Checking...</span>
+                    </div>
+                    <div style="width: 1px; height: 20px; background: #444;"></div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 0.75em; color: #666;">DB:</span>
+                        <span id="dbStatus" style="font-size: 0.85em; color: #999; font-weight: 600;">Checking...</span>
+                    </div>
+                    <button class="btn btn-primary" id="dbLoggingToggle" onclick="toggleDatabaseLogging()" disabled 
+                        style="padding: 4px 8px; font-size: 0.75em;">Pause</button>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 0.75em; color: #999; text-transform: uppercase;">Trace Interval</label>
+                <select id="intervalSelect" style="background: #1a1a1a; border: 1px solid #444; color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 0.9em;" onchange="changeInterval()">
+                    <option value="2">2 seconds</option>
+                    <option value="5" selected>5 seconds</option>
+                    <option value="10">10 seconds</option>
+                    <option value="15">15 seconds</option>
+                    <option value="30">30 seconds</option>
+                </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="monitoringStatus" style="font-size: 0.85em; color: #28a745; font-weight: 600;">● Running</span>
+                <button class="btn btn-secondary" id="toggleMonitoringBtn" onclick="toggleMonitoring()">Stop All</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('live')">Live Monitoring</button>
+        <button class="tab-btn" onclick="switchTab('database')">Database Analysis</button>
+    </div>
+    
+    <!-- Live Tab Content -->
+    <div id="liveTab" class="tab-content active">
+        <div class="targets-section">
+            <div class="targets-header">
+                <h3>Monitored Targets</h3>
+                <button class="btn btn-primary" onclick="toggleAddTargetForm()">+ Add Target</button>
+            </div>
+            
+            <div class="add-target-form" id="addTargetForm">
+                <input type="text" id="newTargetInput" placeholder="Enter target (e.g., google.com, 1.1.1.1)" />
+                <button class="btn btn-primary" onclick="addTarget()">Add</button>
+                <button class="btn btn-secondary" onclick="toggleAddTargetForm()">Cancel</button>
+            </div>
+            
+            <div id="targetList"></div>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="label">Selected:</span>
+                <span class="value" id="selectedTarget">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">IP:</span>
+                <span class="value" id="targetIP">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Samples:</span>
+                <span class="value" id="sampleCount">0</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Last Update:</span>
+                <span class="value" id="lastUpdate">-</span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+        <div class="traceroute-section">
+            <table class="traceroute-table">
+                <thead>
+                    <tr>
+                        <th>Hop</th>
+                        <th>Count</th>
+                        <th>IP</th>
+                        <th>Name</th>
+                        <th>Avg</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                        <th>Cur</th>
+                        <th>PL%</th>
+                        <th>Latency Distribution</th>
+                    </tr>
+                </thead>
+                <tbody id="tracerouteTableBody">
+                    <tr>
+                        <td colspan="10" class="loading">Add targets above to begin monitoring.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="timeline-section">
+            <div class="timeline-header" id="timelineHeader">
+                Select a hop above to view its latency timeline
+            </div>
+            <div class="chart-container">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #28a745;"></div>
+                <span>Good (< 100ms, < 2% loss)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffc107;"></div>
+                <span>Warning (100-200ms or 2-5% loss)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #dc3545;"></div>
+                <span>Critical (> 200ms or > 5% loss)</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Database Analysis Tab -->
+    <div id="databaseTab" class="tab-content" style="height: calc(100vh - 130px); overflow: auto;">
+        <!-- Filters -->
+        <div class="db-filters">
+            <div class="filter-group">
+                <label>Time Range</label>
+                <select id="dbTimeRange" onchange="loadDatabaseData()">
+                    <option value="0.1667">Last 10 Minutes</option>
+                    <option value="1">Last Hour</option>
+                    <option value="6">Last 6 Hours</option>
+                    <option value="24" selected>Last 24 Hours</option>
+                    <option value="168">Last Week</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Issue Type</label>
+                <select id="dbIssueType" onchange="loadDatabaseData()">
+                    <option value="">All Issues</option>
+                    <option value="high_latency">High Latency</option>
+                    <option value="timeout">Timeout</option>
+                    <option value="packet_loss">Packet Loss</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Target</label>
+                <select id="dbTargetFilter" onchange="loadDatabaseData()">
+                    <option value="">All Targets</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Min Latency (ms)</label>
+                <input type="number" id="dbMinLatency" placeholder="0" style="width: 100px;" onchange="loadDatabaseData()">
+            </div>
+            <div class="filter-group">
+                <label>Max Latency (ms)</label>
+                <input type="number" id="dbMaxLatency" placeholder="∞" style="width: 100px;" onchange="loadDatabaseData()">
+            </div>
+            <button class="btn btn-secondary" onclick="loadDatabaseData()">Refresh</button>
+            <button class="btn btn-secondary" onclick="clearLatencyFilter()" style="padding: 6px 10px; font-size: 0.8em;">Clear Latency</button>
+            <button class="btn btn-primary" onclick="exportToCSV()" style="padding: 6px 10px; font-size: 0.8em;">Export CSV</button>
+            
+            <!-- Commented out delete functionality
+            <div style="margin-left: auto; display: flex; gap: 10px; align-items: flex-end;">
+                <div class="filter-group">
+                    <label>Delete From</label>
+                    <input type="datetime-local" id="cleanupStartDate" style="width: 180px;">
+                </div>
+                <div class="filter-group">
+                    <label>Delete To</label>
+                    <input type="datetime-local" id="cleanupEndDate" style="width: 180px;">
+                </div>
+                <button class="btn btn-danger" onclick="cleanupDatabase()" style="height: 34px;">🗑️ Delete Data</button>
+            </div>
+            -->
+        </div>
+        
+        <!-- Statistics -->
+        <div class="db-stats-grid">
+            <div class="db-stat-card">
+                <div class="label">Total Anomalies</div>
+                <div class="value" id="dbTotalAnomalies">-</div>
+            </div>
+            <div class="db-stat-card">
+                <div class="label">High Latency Events</div>
+                <div class="value" id="dbHighLatency" style="color: #ffc107;">-</div>
+            </div>
+            <div class="db-stat-card">
+                <div class="label">Timeout Events</div>
+                <div class="value" id="dbTimeouts" style="color: #dc3545;">-</div>
+            </div>
+            <div class="db-stat-card">
+                <div class="label">Avg Latency</div>
+                <div class="value" id="dbAvgLatency">-</div>
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="db-charts">
+            <div class="chart-card">
+                <h3>Problematic Hops by Target</h3>
+                <canvas id="hopsByTargetChart" style="max-height: 250px;"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Delay Distribution</h3>
+                <canvas id="delayDistChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+        
+        <!-- Cross-Target Hop Analysis -->
+        <div class="db-table-container">
+            <h3 style="color: #fff; margin-bottom: 15px; font-size: 1.1em;">Cross-Target Hop Analysis</h3>
+            <p style="color: #999; margin-bottom: 15px; font-size: 0.9em;">Hops affecting multiple monitored targets (sorted by packet loss)</p>
+            <table class="db-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortCrossTargetTable('hop_ip')">Hop IP</th>
+                        <th class="sortable" onclick="sortCrossTargetTable('hop_hostname')">Hostname</th>
+                        <th class="sortable" onclick="sortCrossTargetTable('targets_affected')">Targets</th>
+                        <th class="sortable" onclick="sortCrossTargetTable('overall_packet_loss_pct')">Packet Loss %</th>
+                        <th class="sortable" onclick="sortCrossTargetTable('total_attempts')">Attempts</th>
+                        <th class="sortable" onclick="sortCrossTargetTable('total_losses')">Losses</th>
+                        <th class="sortable" onclick="sortCrossTargetTable('avg_latency')">Avg Latency</th>
+                        <th>Affected Targets</th>
+                    </tr>
+                </thead>
+                <tbody id="crossTargetTableBody">
+                    <tr><td colspan="8" class="loading">Loading cross-target analysis...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Anomaly Table -->
+        <div class="db-table-container" style="margin-top: 30px;">
+            <h3 style="color: #fff; margin-bottom: 15px; font-size: 1.1em;">Recent Anomalies</h3>
+            <table class="db-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortTable('timestamp')">Time</th>
+                        <th class="sortable" onclick="sortTable('target')">Target</th>
+                        <th class="sortable" onclick="sortTable('issue_type')">Issue</th>
+                        <th class="sortable" onclick="sortTable('problematic_hop')">Hop</th>
+                        <th class="sortable" onclick="sortTable('avg_latency')">Avg Latency</th>
+                        <th class="sortable" onclick="sortTable('problem_hop_latency')">Hop Latency</th>
+                        <th>Problem IP</th>
+                        <th>Hostname</th>
+                    </tr>
+                </thead>
+                <tbody id="dbTableBody">
+                    <tr><td colspan="8" class="loading">Loading data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        let TRACE_INTERVAL = 5000; // 5 seconds (can be changed by user)
+        const MAX_SAMPLES = 100;
+        
+        // State
+        let targets = [
+            { id: 1, url: 'vodafone.de', name: 'vodafone.de', selected: true },
+            { id: 2, url: 'google.com', name: 'google.com', selected: false },
+            { id: 3, url: '1.1.1.1', name: 'Cloudflare DNS (1.1.1.1)', selected: false }
+        ];
+        let targetDataMap = new Map(); // targetId -> { hopData, stats, selectedHop }
+        let monitoringInterval = null;
+        let isMonitoring = false;
+        let nextTargetId = 4;
+        
+        // Chart setup
+        const ctx = document.getElementById('timelineChart').getContext('2d');
+        const timelineChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Latency (ms)',
+                    data: [],
+                    borderColor: '#4a9eff',
+                    backgroundColor: 'rgba(74, 158, 255, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Latency (ms)', color: '#999' },
+                        grid: { color: '#333' },
+                        ticks: { color: '#999' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Time', color: '#999' },
+                        grid: { color: '#333' },
+                        ticks: { color: '#999', maxRotation: 0 }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#444',
+                        borderWidth: 1
+                    }
+                }
+            }
+        });
+        
+        // Initialize target data
+        function initTargetData(targetId) {
+            if (!targetDataMap.has(targetId)) {
+                targetDataMap.set(targetId, {
+                    hopData: new Map(),
+                    stats: {
+                        avgLatency: 0,
+                        packetLoss: 0,
+                        samples: 0,
+                        lastUpdate: null,
+                        status: 'good'
+                    },
+                    selectedHop: null
+                });
+            }
+        }
+        
+        // Calculate target statistics
+        function calculateTargetStats(targetId) {
+            const data = targetDataMap.get(targetId);
+            if (!data || data.hopData.size === 0) return;
+            
+            // Find destination hop (highest hop number)
+            let maxHopNum = 0;
+            data.hopData.forEach((hopInfo, hopNum) => {
+                if (hopNum > maxHopNum) maxHopNum = hopNum;
+            });
+            
+            if (maxHopNum === 0) return;
+            
+            const destHop = data.hopData.get(maxHopNum);
+            if (!destHop) return;
+            
+            const validSamples = destHop.samples.filter(s => s.latency !== null && !s.timeout);
+            if (validSamples.length === 0) return;
+            
+            const latencies = validSamples.map(s => s.latency);
+            data.stats.avgLatency = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+            data.stats.packetLoss = (destHop.timeouts / destHop.samples.length * 100);
+            data.stats.samples = destHop.samples.length;
+            data.stats.lastUpdate = new Date();
+            
+            // Determine status
+            if (data.stats.avgLatency < 100 && data.stats.packetLoss < 2) {
+                data.stats.status = 'good';
+            } else if (data.stats.avgLatency < 200 && data.stats.packetLoss < 5) {
+                data.stats.status = 'warning';
+            } else {
+                data.stats.status = 'critical';
+            }
+        }
+        
+        // Run traceroute for all targets
+        async function runAllTraceroutes() {
+            const promises = targets.map(target => runTraceroute(target.id, target.url));
+            await Promise.all(promises);
+            
+            // Update UI
+            updateTargetList();
+            updateSelectedTargetView();
+        }
+        
+        // Run traceroute for single target
+        async function runTraceroute(targetId, targetUrl) {
+            try {
+                const response = await fetch(`http://localhost:3002/api/traceroute/${targetUrl}`);
+                if (!response.ok) throw new Error('Traceroute failed');
+                
+                const data = await response.json();
+                initTargetData(targetId);
+                const targetData = targetDataMap.get(targetId);
+                
+                // Process hop data
+                data.hops.forEach(hop => {
+                    if (!targetData.hopData.has(hop.hop)) {
+                        targetData.hopData.set(hop.hop, {
+                            samples: [],
+                            ip: hop.ip,
+                            hostname: hop.hostname,
+                            timeouts: 0
+                        });
+                    }
+                    
+                    const hopInfo = targetData.hopData.get(hop.hop);
+                    hopInfo.samples.push({
+                        latency: hop.latency,
+                        timeout: hop.timeout,
+                        timestamp: new Date()
+                    });
+                    
+                    if (hop.timeout) hopInfo.timeouts++;
+                    if (hopInfo.samples.length > MAX_SAMPLES) hopInfo.samples.shift();
+                    if (hop.ip && hop.ip !== '*') hopInfo.ip = hop.ip;
+                    if (hop.hostname) hopInfo.hostname = hop.hostname;
+                });
+                
+                // Calculate stats
+                calculateTargetStats(targetId);
+                
+                // Auto-select destination hop if none selected
+                if (targetData.selectedHop === null && targetData.hopData.size > 0) {
+                    let maxHop = 0;
+                    targetData.hopData.forEach((_, hopNum) => {
+                        if (hopNum > maxHop) maxHop = hopNum;
+                    });
+                    targetData.selectedHop = maxHop;
+                }
+                
+            } catch (error) {
+                console.error(`Traceroute error for ${targetUrl}:`, error);
+            }
+        }
+        
+        // Update target list UI
+        function updateTargetList() {
+            const listHtml = targets.map(target => {
+                initTargetData(target.id);
+                const data = targetDataMap.get(target.id);
+                const stats = data.stats;
+                
+                return `
+                    <div class="target-item ${target.selected ? 'selected' : ''} ${stats.status}" 
+                         onclick="selectTarget(${target.id})">
+                        <div class="status-dot ${stats.status}"></div>
+                        <div class="target-info">
+                            <div class="target-name">${target.name}</div>
+                            <div class="target-stats">
+                                <span class="stat">Avg: <strong>${stats.avgLatency.toFixed(1)}ms</strong></span>
+                                <span class="stat">PL: <strong>${stats.packetLoss.toFixed(1)}%</strong></span>
+                                <span class="stat">Samples: <strong>${stats.samples}</strong></span>
+                            </div>
+                        </div>
+                        <div class="target-actions">
+                            <button class="btn btn-danger" onclick="removeTarget(${target.id}, event)">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('targetList').innerHTML = listHtml;
+        }
+        
+        // Select target
+        function selectTarget(targetId) {
+            targets.forEach(t => t.selected = (t.id === targetId));
+            updateTargetList();
+            updateSelectedTargetView();
+        }
+        
+        // Update selected target view (traceroute table + timeline)
+        function updateSelectedTargetView() {
+            const selected = targets.find(t => t.selected);
+            if (!selected) return;
+            
+            initTargetData(selected.id);
+            const targetData = targetDataMap.get(selected.id);
+            
+            // Update status bar
+            document.getElementById('selectedTarget').textContent = selected.name;
+            document.getElementById('sampleCount').textContent = targetData.stats.samples;
+            document.getElementById('lastUpdate').textContent = 
+                targetData.stats.lastUpdate ? targetData.stats.lastUpdate.toLocaleTimeString() : '-';
+            
+            // Update traceroute table
+            updateTracerouteTable(selected.id);
+            
+            // Update timeline
+            if (targetData.selectedHop !== null) {
+                updateTimeline(selected.id, targetData.selectedHop);
+            }
+        }
+        
+        // Update traceroute table
+        function updateTracerouteTable(targetId) {
+            const targetData = targetDataMap.get(targetId);
+            if (!targetData) return;
+            
+            const tbody = document.getElementById('tracerouteTableBody');
+            const rows = [];
+            
+            // Get target IP for status bar
+            let maxHopNum = 0;
+            targetData.hopData.forEach((_, hopNum) => {
+                if (hopNum > maxHopNum) maxHopNum = hopNum;
+            });
+            if (maxHopNum > 0) {
+                const destHop = targetData.hopData.get(maxHopNum);
+                if (destHop) {
+                    document.getElementById('targetIP').textContent = destHop.ip || '-';
+                }
+            }
+            
+            targetData.hopData.forEach((hopInfo, hopNum) => {
+                const validSamples = hopInfo.samples.filter(s => s.latency !== null && !s.timeout);
+                if (validSamples.length === 0) return;
+                
+                const latencies = validSamples.map(s => s.latency);
+                const avg = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+                const min = Math.min(...latencies);
+                const max = Math.max(...latencies);
+                const cur = hopInfo.samples[hopInfo.samples.length - 1]?.latency || 0;
+                const pl = (hopInfo.timeouts / hopInfo.samples.length * 100).toFixed(1);
+                
+                const hopStatus = avg < 100 ? 'good' : avg < 200 ? 'warning' : 'error';
+                const barWidth = Math.min((avg / 500) * 100, 100);
+                
+                rows.push(`
+                    <tr onclick="selectHop(${targetId}, ${hopNum})" 
+                        class="${targetData.selectedHop === hopNum ? 'selected' : ''}">
+                        <td class="hop-number">
+                            <span class="hop-indicator ${hopStatus}">${hopNum}</span>
+                        </td>
+                        <td>${hopInfo.samples.length}</td>
+                        <td>${hopInfo.ip || '*'}</td>
+                        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">
+                            ${hopInfo.hostname || '-'}
+                        </td>
+                        <td><strong>${avg.toFixed(1)}</strong></td>
+                        <td>${min.toFixed(1)}</td>
+                        <td>${max.toFixed(1)}</td>
+                        <td>${cur ? cur.toFixed(1) : '-'}</td>
+                        <td ${pl > 5 ? 'class="pl-high"' : ''}>${pl}%</td>
+                        <td>
+                            <div class="latency-bar-container">
+                                <div class="latency-markers">
+                                    <div class="latency-marker"></div>
+                                    <div class="latency-marker"></div>
+                                    <div class="latency-marker"></div>
+                                    <div class="latency-marker"></div>
+                                </div>
+                                <div class="latency-bar ${hopStatus}" style="width: ${barWidth}%;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                `);
+            });
+            
+            tbody.innerHTML = rows.join('') || '<tr><td colspan="10" class="loading">No data available yet.</td></tr>';
+        }
+        
+        // Select hop for timeline
+        function selectHop(targetId, hopNum) {
+            const targetData = targetDataMap.get(targetId);
+            if (!targetData) return;
+            
+            targetData.selectedHop = hopNum;
+            updateTracerouteTable(targetId);
+            updateTimeline(targetId, hopNum);
+        }
+        
+        // Update timeline chart
+        function updateTimeline(targetId, hopNum) {
+            const targetData = targetDataMap.get(targetId);
+            if (!targetData) return;
+            
+            const hopInfo = targetData.hopData.get(hopNum);
+            if (!hopInfo) return;
+            
+            const target = targets.find(t => t.id === targetId);
+            document.getElementById('timelineHeader').textContent = 
+                `${target.name} - Hop ${hopNum}: ${hopInfo.hostname || hopInfo.ip} - Latency Timeline`;
+            
+            const labels = hopInfo.samples.map(s => s.timestamp.toLocaleTimeString());
+            const data = hopInfo.samples.map(s => s.timeout ? null : s.latency);
+            
+            timelineChart.data.labels = labels;
+            timelineChart.data.datasets[0].data = data;
+            
+            const validData = data.filter(d => d !== null);
+            const avg = validData.length > 0 ? validData.reduce((a, b) => a + b, 0) / validData.length : 0;
+            const color = avg < 100 ? '#28a745' : avg < 200 ? '#ffc107' : '#dc3545';
+            timelineChart.data.datasets[0].borderColor = color;
+            timelineChart.data.datasets[0].backgroundColor = color + '20';
+            
+            timelineChart.update();
+        }
+        
+        // Add target
+        function addTarget() {
+            const input = document.getElementById('newTargetInput');
+            const url = input.value.trim();
+            
+            if (!url) {
+                alert('Please enter a target URL');
+                return;
+            }
+            
+            if (targets.some(t => t.url === url)) {
+                alert('Target already exists');
+                return;
+            }
+            
+            const newTarget = {
+                id: nextTargetId++,
+                url: url,
+                name: url,
+                selected: false
+            };
+            
+            targets.push(newTarget);
+            input.value = '';
+            toggleAddTargetForm();
+            updateTargetList();
+        }
+        
+        // Remove target
+        function removeTarget(targetId, event) {
+            event.stopPropagation();
+            
+            if (targets.length === 1) {
+                alert('Cannot remove the last target');
+                return;
+            }
+            
+            const index = targets.findIndex(t => t.id === targetId);
+            if (index === -1) return;
+            
+            const wasSelected = targets[index].selected;
+            targets.splice(index, 1);
+            targetDataMap.delete(targetId);
+            
+            // Select first target if removed target was selected
+            if (wasSelected && targets.length > 0) {
+                targets[0].selected = true;
+            }
+            
+            updateTargetList();
+            updateSelectedTargetView();
+        }
+        
+        // Toggle add target form
+        function toggleAddTargetForm() {
+            const form = document.getElementById('addTargetForm');
+            form.classList.toggle('active');
+        }
+        
+        // Start monitoring
+        function startMonitoring() {
+            if (isMonitoring) return;
+            
+            isMonitoring = true;
+            
+            // Initialize all targets
+            targets.forEach(target => initTargetData(target.id));
+            
+            // Run first traceroutes
+            runAllTraceroutes();
+            
+            // Set up interval
+            const interval = parseInt(document.getElementById('intervalSelect').value) * 1000;
+            monitoringInterval = setInterval(runAllTraceroutes, interval);
+            
+            updateMonitoringUI();
+            console.log('Monitoring started with interval:', interval);
+        }
+        
+        // Stop monitoring
+        function stopMonitoring() {
+            if (!isMonitoring) return;
+            
+            isMonitoring = false;
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+            }
+            
+            updateMonitoringUI();
+            console.log('Monitoring stopped');
+        }
+        
+        // Toggle monitoring (Start/Stop)
+        function toggleMonitoring() {
+            if (isMonitoring) {
+                stopMonitoring();
+            } else {
+                startMonitoring();
+            }
+        }
+        
+        // Change interval
+        function changeInterval() {
+            const newInterval = parseInt(document.getElementById('intervalSelect').value) * 1000;
+            
+            // Restart monitoring with new interval
+            if (isMonitoring) {
+                stopMonitoring();
+                // Update global interval
+                TRACE_INTERVAL = newInterval;
+                setTimeout(() => startMonitoring(), 100);
+            }
+        }
+        
+        // Update monitoring UI status
+        function updateMonitoringUI() {
+            const statusEl = document.getElementById('monitoringStatus');
+            const btnEl = document.getElementById('toggleMonitoringBtn');
+            
+            if (isMonitoring) {
+                statusEl.textContent = '● Running';
+                statusEl.style.color = '#28a745';
+                btnEl.textContent = 'Stop All';
+                btnEl.className = 'btn btn-secondary';
+            } else {
+                statusEl.textContent = '○ Stopped';
+                statusEl.style.color = '#dc3545';
+                btnEl.textContent = 'Start All';
+                btnEl.className = 'btn btn-primary';
+            }
+        }
+        
+        // ==================== CONNECTION STATUS FUNCTIONS ====================
+        
+        // Check both backend and database status
+        async function checkConnectionStatus() {
+            await checkBackendStatus();
+            await checkDatabaseStatus();
+        }
+        
+        // Check backend status
+        async function checkBackendStatus() {
+            const backendEl = document.getElementById('backendStatus');
+            
+            try {
+                const response = await fetch('http://localhost:3002/health');
+                if (response.ok) {
+                    backendEl.textContent = 'Connected';
+                    backendEl.style.color = '#28a745';
+                } else {
+                    backendEl.textContent = 'Offline';
+                    backendEl.style.color = '#dc3545';
+                }
+            } catch (error) {
+                backendEl.textContent = 'Offline';
+                backendEl.style.color = '#dc3545';
+            }
+        }
+        
+        // Check database status
+        async function checkDatabaseStatus() {
+            const dbStatusEl = document.getElementById('dbStatus');
+            const toggleBtn = document.getElementById('dbLoggingToggle');
+            
+            try {
+                const response = await fetch('http://localhost:3002/api/database/status');
+                const data = await response.json();
+                
+                if (data.connected) {
+                    dbStatusEl.textContent = data.logging_enabled ? 'Logging' : 'Paused';
+                    dbStatusEl.style.color = data.logging_enabled ? '#28a745' : '#ffc107';
+                    toggleBtn.disabled = false;
+                    toggleBtn.textContent = data.logging_enabled ? 'Pause' : 'Resume';
+                    toggleBtn.className = data.logging_enabled ? 'btn btn-primary' : 'btn btn-secondary';
+                    toggleBtn.style.padding = '4px 8px';
+                    toggleBtn.style.fontSize = '0.75em';
+                } else {
+                    dbStatusEl.textContent = 'Offline';
+                    dbStatusEl.style.color = '#dc3545';
+                    toggleBtn.disabled = true;
+                    toggleBtn.className = 'btn btn-primary';
+                    toggleBtn.style.padding = '4px 8px';
+                    toggleBtn.style.fontSize = '0.75em';
+                }
+            } catch (error) {
+                dbStatusEl.textContent = 'Offline';
+                dbStatusEl.style.color = '#dc3545';
+                toggleBtn.disabled = true;
+                toggleBtn.className = 'btn btn-primary';
+                toggleBtn.style.padding = '4px 8px';
+                toggleBtn.style.fontSize = '0.75em';
+            }
+        }
+        
+        // Toggle database logging
+        async function toggleDatabaseLogging() {
+            try {
+                const statusResponse = await fetch('http://localhost:3002/api/database/status');
+                const statusData = await statusResponse.json();
+                const newState = !statusData.logging_enabled;
+                
+                const response = await fetch('http://localhost:3002/api/database/logging', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: newState })
+                });
+                
+                if (response.ok) {
+                    await checkDatabaseStatus();
+                    console.log(`Database logging ${newState ? 'enabled' : 'disabled'}`);
+                } else {
+                    alert('Failed to toggle database logging');
+                }
+            } catch (error) {
+                alert('Failed to connect to backend');
+            }
+        }
+        
+        // ==================== DATABASE ANALYSIS TAB ====================
+        
+        let dbData = [];
+        let dbSortColumn = 'timestamp';
+        let dbSortDirection = 'desc';
+        let hopsByTargetChart = null;
+        let delayDistChart = null;
+        
+        // Switch tabs
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Load database data when switching to database tab
+            if (tabName === 'database') {
+                loadDatabaseData();
+            }
+        }
+        
+        // Load database data
+        async function loadDatabaseData() {
+            const hours = document.getElementById('dbTimeRange').value;
+            const issueType = document.getElementById('dbIssueType').value;
+            const target = document.getElementById('dbTargetFilter').value;
+            const minLatency = document.getElementById('dbMinLatency').value;
+            const maxLatency = document.getElementById('dbMaxLatency').value;
+            
+            try {
+                let url = `http://localhost:3002/api/anomalies?hours=${hours}&limit=500`;
+                if (issueType) url += `&issue_type=${issueType}`;
+                if (target) url += `&target=${encodeURIComponent(target)}`;
+                if (minLatency) url += `&min_latency=${minLatency}`;
+                if (maxLatency) url += `&max_latency=${maxLatency}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch data');
+                
+                const data = await response.json();
+                dbData = data.anomalies;
+                
+                // Update statistics
+                updateDatabaseStats(dbData);
+                
+                // Update target filter options
+                updateTargetFilterOptions(dbData);
+                
+                // Update table
+                renderDatabaseTable();
+                
+                // Update charts
+                await updateDatabaseCharts();
+                
+            } catch (error) {
+                console.error('Failed to load database data:', error);
+                document.getElementById('dbTableBody').innerHTML = 
+                    '<tr><td colspan="8" class="loading">Failed to load data. Check backend connection.</td></tr>';
+            }
+        }
+        
+        // Update database statistics
+        function updateDatabaseStats(data) {
+            const total = data.length;
+            const highLatency = data.filter(a => a.issue_type === 'high_latency').length;
+            const timeouts = data.filter(a => a.issue_type === 'timeout').length;
+            
+            const latencies = data
+                .filter(a => a.avg_latency)
+                .map(a => parseFloat(a.avg_latency));
+            const avgLatency = latencies.length > 0 
+                ? (latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(1)
+                : '-';
+            
+            document.getElementById('dbTotalAnomalies').textContent = total;
+            document.getElementById('dbHighLatency').textContent = highLatency;
+            document.getElementById('dbTimeouts').textContent = timeouts;
+            document.getElementById('dbAvgLatency').textContent = avgLatency !== '-' ? avgLatency + 'ms' : '-';
+        }
+        
+        // Update target filter options
+        function updateTargetFilterOptions(data) {
+            const targets = [...new Set(data.map(a => a.target))];
+            const select = document.getElementById('dbTargetFilter');
+            const currentValue = select.value;
+            
+            select.innerHTML = '<option value="">All Targets</option>';
+            targets.forEach(target => {
+                const option = document.createElement('option');
+                option.value = target;
+                option.textContent = target;
+                if (target === currentValue) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+        
+        // Render database table
+        function renderDatabaseTable() {
+            const tbody = document.getElementById('dbTableBody');
+            
+            if (dbData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">No anomalies found for selected filters</td></tr>';
+                return;
+            }
+            
+            const rows = dbData.map(anomaly => {
+                const time = new Date(anomaly.timestamp).toLocaleString();
+                const issueClass = anomaly.issue_type.replace('_', '');
+                const avgLat = anomaly.avg_latency ? parseFloat(anomaly.avg_latency).toFixed(1) : '-';
+                const hopLat = anomaly.problem_hop_latency ? parseFloat(anomaly.problem_hop_latency).toFixed(1) : '-';
+                
+                return `
+                    <tr>
+                        <td>${time}</td>
+                        <td>${anomaly.target}</td>
+                        <td><span class="issue-badge ${issueClass}">${anomaly.issue_type.replace('_', ' ')}</span></td>
+                        <td>${anomaly.problematic_hop || '-'}</td>
+                        <td>${avgLat}ms</td>
+                        <td>${hopLat}ms</td>
+                        <td style="font-family: monospace; font-size: 0.85em;">${anomaly.problem_hop_ip || '-'}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${anomaly.problem_hop_hostname || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tbody.innerHTML = rows;
+        }
+        
+        // Sort table
+        function sortTable(column) {
+            // Toggle sort direction if clicking same column
+            if (dbSortColumn === column) {
+                dbSortDirection = dbSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                dbSortColumn = column;
+                dbSortDirection = 'asc';
+            }
+            
+            // Sort data
+            dbData.sort((a, b) => {
+                let aVal = a[column];
+                let bVal = b[column];
+                
+                // Handle numeric columns
+                if (column === 'problematic_hop' || column === 'avg_latency' || column === 'problem_hop_latency') {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                }
+                
+                // Handle string columns
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = (bVal || '').toLowerCase();
+                }
+                
+                if (aVal < bVal) return dbSortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return dbSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            // Update table headers
+            document.querySelectorAll('.db-table th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            const th = event.target;
+            th.classList.add(dbSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+            
+            // Re-render table
+            renderDatabaseTable();
+        }
+        
+        // Update database charts
+        async function updateDatabaseCharts() {
+            // Get hop statistics
+            try {
+                const response = await fetch('http://localhost:3002/api/hop-stats?limit=10');
+                const data = await response.json();
+                
+                // Group by target
+                const targetHops = {};
+                data.hop_stats.forEach(stat => {
+                    if (!targetHops[stat.target]) {
+                        targetHops[stat.target] = 0;
+                    }
+                    targetHops[stat.target] += parseInt(stat.problem_count);
+                });
+                
+                const targets = Object.keys(targetHops);
+                const counts = Object.values(targetHops);
+                
+                // Update Hops by Target chart
+                const ctx1 = document.getElementById('hopsByTargetChart').getContext('2d');
+                if (hopsByTargetChart) {
+                    hopsByTargetChart.destroy();
+                }
+                
+                hopsByTargetChart = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: targets,
+                        datasets: [{
+                            label: 'Problematic Hops',
+                            data: counts,
+                            backgroundColor: '#4a9eff',
+                            borderColor: '#3a7ed5',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (event, activeElements) => {
+                            if (activeElements.length > 0) {
+                                const index = activeElements[0].index;
+                                const targetName = targets[index];
+                                filterByTarget(targetName);
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#999' },
+                                grid: { color: '#333' }
+                            },
+                            x: {
+                                ticks: { color: '#999' },
+                                grid: { display: false }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    afterLabel: () => 'Click to filter by this target'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Update Delay Distribution chart
+                const latencies = dbData
+                    .filter(a => a.problem_hop_latency)
+                    .map(a => parseFloat(a.problem_hop_latency));
+                
+                const buckets = [0, 100, 200, 300, 500, 1000, 2000];
+                const counts2 = new Array(buckets.length - 1).fill(0);
+                
+                latencies.forEach(lat => {
+                    for (let i = 0; i < buckets.length - 1; i++) {
+                        if (lat >= buckets[i] && lat < buckets[i + 1]) {
+                            counts2[i]++;
+                            break;
+                        }
+                    }
+                });
+                
+                const ctx2 = document.getElementById('delayDistChart').getContext('2d');
+                if (delayDistChart) {
+                    delayDistChart.destroy();
+                }
+                
+                delayDistChart = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: ['0-100ms', '100-200ms', '200-300ms', '300-500ms', '500-1000ms', '1000-2000ms'],
+                        datasets: [{
+                            label: 'Count',
+                            data: counts2,
+                            backgroundColor: [
+                                '#28a745',
+                                '#20c997',
+                                '#ffc107',
+                                '#fd7e14',
+                                '#dc3545',
+                                '#c82333'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (event, activeElements) => {
+                            if (activeElements.length > 0) {
+                                const index = activeElements[0].index;
+                                const ranges = [
+                                    [0, 100],
+                                    [100, 200],
+                                    [200, 300],
+                                    [300, 500],
+                                    [500, 1000],
+                                    [1000, 2000]
+                                ];
+                                const [min, max] = ranges[index];
+                                filterByLatencyRange(min, max);
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#999' },
+                                grid: { color: '#333' }
+                            },
+                            x: {
+                                ticks: { color: '#999' },
+                                grid: { display: false }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    afterLabel: () => 'Click to filter by this latency range'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Failed to update charts:', error);
+            }
+            
+            // Load cross-target hop analysis
+            await loadCrossTargetAnalysis();
+        }
+        
+        // Cross-target hop analysis
+        let crossTargetData = [];
+        let crossTargetSortColumn = 'overall_packet_loss_pct';
+        let crossTargetSortDirection = 'desc';
+        
+        async function loadCrossTargetAnalysis() {
+            const hours = document.getElementById('dbTimeRange').value;
+            
+            try {
+                const response = await fetch(`http://localhost:3002/api/cross-target-hop-analysis?hours=${hours}&min_targets=2`);
+                if (!response.ok) throw new Error('Failed to fetch cross-target data');
+                
+                const data = await response.json();
+                crossTargetData = data.cross_target_hops;
+                
+                renderCrossTargetTable();
+            } catch (error) {
+                console.error('Failed to load cross-target analysis:', error);
+                document.getElementById('crossTargetTableBody').innerHTML = 
+                    '<tr><td colspan="8" class="loading">Failed to load data.</td></tr>';
+            }
+        }
+        
+        function renderCrossTargetTable() {
+            const tbody = document.getElementById('crossTargetTableBody');
+            
+            if (crossTargetData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">No hops affecting multiple targets found.</td></tr>';
+                return;
+            }
+            
+            const rows = crossTargetData.map(hop => {
+                const pl = parseFloat(hop.overall_packet_loss_pct).toFixed(2);
+                const avgLat = hop.avg_latency ? parseFloat(hop.avg_latency).toFixed(1) : '-';
+                const targets = hop.affected_targets.join(', ');
+                
+                // Color code packet loss
+                let plClass = '';
+                if (pl > 10) plClass = 'pl-high';
+                
+                return `
+                    <tr>
+                        <td style="font-family: monospace; font-size: 0.85em;">${hop.hop_ip || '-'}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${hop.hop_hostname || '-'}</td>
+                        <td><strong>${hop.targets_affected}</strong></td>
+                        <td class="${plClass}"><strong>${pl}%</strong></td>
+                        <td>${hop.total_attempts}</td>
+                        <td>${hop.total_losses}</td>
+                        <td>${avgLat !== '-' ? avgLat + 'ms' : '-'}</td>
+                        <td style="font-size: 0.85em;">${targets}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tbody.innerHTML = rows;
+        }
+        
+        function sortCrossTargetTable(column) {
+            if (crossTargetSortColumn === column) {
+                crossTargetSortDirection = crossTargetSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                crossTargetSortColumn = column;
+                crossTargetSortDirection = 'desc'; // Default to descending for most metrics
+            }
+            
+            crossTargetData.sort((a, b) => {
+                let aVal = a[column];
+                let bVal = b[column];
+                
+                // Handle numeric columns
+                if (['targets_affected', 'overall_packet_loss_pct', 'total_attempts', 'total_losses', 'avg_latency'].includes(column)) {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                }
+                
+                // Handle string columns
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = (bVal || '').toLowerCase();
+                }
+                
+                if (aVal < bVal) return crossTargetSortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return crossTargetSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            renderCrossTargetTable();
+        }
+        
+        // Clear latency filter
+        function clearLatencyFilter() {
+            document.getElementById('dbMinLatency').value = '';
+            document.getElementById('dbMaxLatency').value = '';
+            loadDatabaseData();
+        }
+        
+        // Filter by target (called from chart click)
+        function filterByTarget(targetName) {
+            document.getElementById('dbTargetFilter').value = targetName;
+            loadDatabaseData();
+        }
+        
+        // Filter by latency range (called from chart click)
+        function filterByLatencyRange(minLatency, maxLatency) {
+            document.getElementById('dbMinLatency').value = minLatency;
+            document.getElementById('dbMaxLatency').value = maxLatency;
+            loadDatabaseData();
+        }
+        
+        // Export to CSV
+        function exportToCSV() {
+            if (dbData.length === 0) {
+                alert('No data to export');
+                return;
+            }
+            
+            // Create CSV content
+            const headers = ['Timestamp', 'Target', 'Issue Type', 'Hop', 'Avg Latency (ms)', 'Hop Latency (ms)', 'Problem IP', 'Hostname'];
+            const csvRows = [headers.join(',')];
+            
+            dbData.forEach(anomaly => {
+                const row = [
+                    new Date(anomaly.timestamp).toLocaleString(),
+                    anomaly.target,
+                    anomaly.issue_type,
+                    anomaly.problematic_hop || '',
+                    anomaly.avg_latency ? parseFloat(anomaly.avg_latency).toFixed(1) : '',
+                    anomaly.problem_hop_latency ? parseFloat(anomaly.problem_hop_latency).toFixed(1) : '',
+                    anomaly.problem_hop_ip || '',
+                    anomaly.problem_hop_hostname || ''
+                ];
+                // Escape commas in fields
+                csvRows.push(row.map(field => `"${field}"`).join(','));
+            });
+            
+            // Create download
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `anomalies_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Clean up database
+        async function cleanupDatabase() {
+            const startDate = document.getElementById('cleanupStartDate').value;
+            const endDate = document.getElementById('cleanupEndDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            // Confirm deletion
+            const confirmed = confirm(`Are you sure you want to delete all data between ${startDate} and ${endDate}?\n\nThis action cannot be undone.`);
+            if (!confirmed) return;
+            
+            try {
+                const response = await fetch(
+                    `http://localhost:3002/api/database/cleanup?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`,
+                    { method: 'DELETE' }
+                );
+                
+                if (!response.ok) throw new Error('Cleanup failed');
+                
+                const data = await response.json();
+                alert(`Success!\n\nDeleted:\n- ${data.events_deleted} anomaly events\n- ${data.hop_stats_deleted} hop statistics records`);
+                
+                // Reload database data
+                loadDatabaseData();
+                
+            } catch (error) {
+                console.error('Database cleanup error:', error);
+                alert('Failed to clean up database. Check console for details.');
+            }
+        }
+        
+        // Initialize
+        targets.forEach(target => initTargetData(target.id));
+        updateTargetList();
+        updateSelectedTargetView();
+        
+        // Check connection status on load and every 5 seconds
+        checkConnectionStatus();
+        setInterval(checkConnectionStatus, 5000);
+        
+        // Auto-start monitoring
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                startMonitoring();
+            }, 500);
+        });
+    </script>
+</body>
+</html>
