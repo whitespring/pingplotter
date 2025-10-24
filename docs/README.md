@@ -1,202 +1,227 @@
-# WebPing - Network Monitoring Application
+# PingPlotter - Network Monitoring Tool
 
-A proof of concept for a network monitoring application with multi-target ping monitoring, traceroute capabilities, and NocoDB integration.
+A real-time network monitoring and traceroute visualization tool with anomaly detection, database tracking, and interactive analysis features.
 
 ## Features
 
-- Multi-target ping monitoring with configurable intervals
-- Real-time data visualization with charts
-- Traceroute functionality for network path analysis
-- PostgreSQL/TimescaleDB for time-series data storage
-- NocoDB integration for data management and dashboards
-- WebSocket-based real-time updates
+### Live Monitoring
+- Multi-target network monitoring with configurable trace intervals (2-30 seconds)
+- Real-time traceroute visualization with hop-by-hop latency tracking
+- Interactive latency timeline charts
+- Packet loss percentage tracking per hop
+- Color-coded status indicators (Good/Warning/Critical)
+
+### Database Analysis
+- Historical anomaly tracking (high latency, timeouts, packet loss)
+- Cross-target hop analysis - identify problematic network hops affecting multiple destinations
+- Interactive chart filtering - click charts to filter data
+- Sortable data tables with multiple filters
+- Time range selection (10 minutes to 1 week)
+- CSV export functionality
+
+### Anomaly Detection
+- Automatic detection of high latency (>200ms)
+- Timeout detection with intelligent filtering (ignores ICMP-silent routers)
+- Packet loss calculation excluding hops without IP addresses
+- Per-hop statistics tracking with 1-minute aggregation
 
 ## Architecture
 
-The application consists of:
-
-1. **Frontend**: React application for user interface
-2. **Backend**: Node.js/Express server with WebSocket support
-3. **Database**: PostgreSQL with TimescaleDB extension
-4. **Task Queue**: Redis with BullMQ for background jobs
-5. **NocoDB**: For data management and dashboard visualization
+```
+├── src/
+│   ├── pingplotter.html      # Single-page application (frontend)
+│   ├── monitor-backend.js    # Node.js backend server
+│   ├── schema.sql           # PostgreSQL database schema
+│   └── package.json         # Node.js dependencies
+├── scripts/                  # Start/stop scripts
+├── docs/                     # Documentation
+└── .gitignore
+```
 
 ## Prerequisites
 
-- Docker and Docker Compose (recommended)
-- Node.js (for local development)
-- npm or yarn
+- Node.js (v14 or higher)
+- PostgreSQL database
+- macOS, Linux, or Windows
 
-## Installation Options
+## Installation
 
-### Option 1: Using Docker (Recommended)
-
-If you have Docker installed, you can run the complete application with all services:
-
-1. Start the services:
-   ```bash
-   docker compose up -d
-   ```
-
-2. Access the application:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:3001
-
-### Option 2: Local Development Setup
-
-If you don't have Docker, you can run the services locally:
-
-1. Install PostgreSQL with TimescaleDB extension:
-   - Download and install PostgreSQL from https://www.postgresql.org/download/
-   - Install TimescaleDB extension from https://docs.timescale.com/getting-started/latest/
-   - Create a database named "webping" with username "postgres" and password "password"
-
-2. Install Redis:
-   - Download and install Redis from https://redis.io/download/
-   - Start Redis server with `redis-server`
-
-3. Run backend:
-   ```bash
-   cd backend
-   npm install
-   npm start
-   ```
-
-4. Run frontend:
-   ```bash
-   cd frontend
-   npm install
-   npm start
-   ```
-
-5. Access the application at http://localhost:3000
-
-## Setup and Installation
-
-### 1. Start the Services
+### 1. Clone the Repository
 
 ```bash
-docker-compose up -d
+git clone https://github.com/whitespring/pingplotter.git
+cd pingplotter
 ```
 
-This will start:
-- PostgreSQL with TimescaleDB
-- Redis
-- Backend service
-- Frontend service
+### 2. Install Dependencies
 
-### 2. Access the Application
+```bash
+cd src
+npm install
+```
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
+### 3. Set Up Database
 
-### 3. NocoDB Integration
+Create a PostgreSQL database and run the schema:
 
-To integrate with your existing NocoDB:
+```bash
+psql -U postgres -d your_database < schema.sql
+```
 
-1. Open your NocoDB instance
-2. Create a new project and connect to the PostgreSQL database:
-   - Host: localhost
-   - Port: 5432
-   - Database: webping
-   - Username: postgres
-   - Password: password
-3. NocoDB will automatically detect the tables:
-   - `ping_results`: Stores ping monitoring data
-   - `traceroute_results`: Stores traceroute data
-4. Create views and dashboards in NocoDB to visualize the data
+See [DATABASE-SETUP.md](DATABASE-SETUP.md) for detailed instructions.
+
+### 4. Configure Environment
+
+Edit `src/.env` (or create it) with your database connection:
+
+```env
+DATABASE_URL=postgresql://postgres:password@localhost:5432/pingplot
+```
+
+### 5. Start the Backend
+
+```bash
+# From project root
+./scripts/start-pingplotter.sh
+
+# Or manually
+cd src
+node monitor-backend.js
+```
+
+### 6. Open the Frontend
+
+Open `src/pingplotter.html` in your web browser, or use:
+
+```bash
+open src/pingplotter.html  # macOS
+```
+
+## Quick Start Scripts
+
+### Unix/macOS
+```bash
+# Start monitoring
+./scripts/start-pingplotter.sh
+
+# Stop monitoring
+./scripts/stop-pingplotter.sh
+```
+
+### Windows
+```bash
+# Start monitoring
+scripts\start-pingplotter.bat
+
+# Stop monitoring
+scripts\stop-pingplotter.bat
+```
+
+## Usage
+
+### Adding Targets
+
+1. Click "+ Add Target" in the Live Monitoring tab
+2. Enter a hostname or IP address (e.g., google.com, 8.8.8.8)
+3. Click "Add"
+
+### Monitoring Features
+
+- **Live Tab**: Real-time traceroute visualization with latency graphs
+- **Database Analysis Tab**: Historical data analysis with filtering and charts
+- Click on any hop row to view its latency timeline
+- Adjust trace interval from 2-30 seconds
+- Pause/Resume database logging as needed
+
+### Interactive Charts
+
+In the Database Analysis tab:
+- Click bars in "Hops by Target" to filter by target
+- Click bars in "Delay Distribution" to filter by latency range
+- Use time range and issue type filters for detailed analysis
+- Export filtered results to CSV
+
+## Configuration
+
+### Backend (monitor-backend.js)
+
+- `PORT`: Server port (default: 3002)
+- `ANOMALY_THRESHOLDS.HIGH_LATENCY`: Latency threshold in ms (default: 200)
+- `ANOMALY_THRESHOLDS.PACKET_LOSS`: Packet loss threshold % (default: 3)
+
+### Database
+
+Connection string format:
+```
+postgresql://user:password@host:port/database
+```
 
 ## API Endpoints
 
-### Targets Management
-- `GET /api/targets` - Get all monitoring targets
-- `POST /api/targets` - Add a new target
-- `DELETE /api/targets/:target` - Remove a target
+### Traceroute
+- `GET /api/traceroute/:target` - Run traceroute for target
 
-### Data Retrieval
-- `GET /api/results/:target` - Get ping results for a target
-- `GET /api/traceroute/:target` - Get traceroute results for a target
+### Anomalies
+- `GET /api/anomalies` - Get anomalies with filtering
+  - Query params: `target`, `issue_type`, `hours`, `limit`, `min_latency`, `max_latency`
+- `GET /api/anomalies/:id/hops` - Get full hop path for event
 
-## Development
+### Statistics
+- `GET /api/hop-stats` - Get problematic hop statistics
+- `GET /api/cross-target-hop-analysis` - Get cross-target analysis
+- `GET /api/hop-packet-loss` - Get per-hop packet loss data
 
-### Backend Development
-
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-### Frontend Development
-
-```bash
-cd frontend
-npm install
-npm start
-```
+### Database Management
+- `GET /api/database/status` - Check database connection and logging status
+- `POST /api/database/logging` - Toggle anomaly logging
+- `GET /api/export/anomalies` - Export anomalies to CSV
 
 ## Database Schema
 
-### ping_results
-```sql
-CREATE TABLE ping_results (
-  id SERIAL PRIMARY KEY,
-  target TEXT NOT NULL,
-  latency FLOAT,
-  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  status TEXT
-);
-```
+See [schema.sql](../src/schema.sql) for complete schema.
 
-### traceroute_results
-```sql
-CREATE TABLE traceroute_results (
-  id SERIAL PRIMARY KEY,
-  target TEXT NOT NULL,
-  hop_number INTEGER,
-  ip_address TEXT,
-  latency FLOAT,
-  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
+**Main Tables:**
+- `network_events` - Anomaly events (high latency, timeouts, packet loss)
+- `event_hops` - Individual hop data for each event
+- `hop_statistics` - Aggregated per-hop statistics (per minute)
 
-## Environment Variables
+## Documentation
 
-### Backend
-- `DATABASE_URL`: PostgreSQL connection string (default: postgresql://postgres:password@database:5432/webping)
-- `REDIS_URL`: Redis connection string (default: redis://redis:6379)
-- `PORT`: Server port (default: 3001)
+- [DATABASE-SETUP.md](DATABASE-SETUP.md) - Database configuration guide
+- [ANOMALY-TRACKING-IMPLEMENTATION.md](ANOMALY-TRACKING-IMPLEMENTATION.md) - Technical details
+- [MONITOR-README.md](MONITOR-README.md) - Monitoring features guide
 
-### Frontend
-- `REACT_APP_API_URL`: Backend API URL (default: http://localhost:3001)
+## Troubleshooting
 
-## Using an External PostgreSQL Database
+### Backend Not Starting
+- Check if PostgreSQL is running
+- Verify DATABASE_URL in environment or .env file
+- Ensure port 3002 is available
 
-To use an external PostgreSQL database instead of the one provided in Docker Compose:
+### No Data Appearing
+- Verify database connection in browser console
+- Check backend terminal for errors
+- Ensure traceroute command is available on your system
 
-1. Edit the `backend/.env` file
-2. Uncomment and modify the DATABASE_URL line with your external database connection details:
-   ```
-   DATABASE_URL=postgresql://username:password@your-external-host:5432/your-database-name
-   ```
-3. Make sure your external database has the TimescaleDB extension installed
-4. Run the application with `docker-compose up -d`
+### CORS Errors
+- Backend runs on localhost:3002
+- Open HTML file directly or use a local web server
 
-The application will automatically connect to your external database while still using the Redis container provided in Docker Compose.
+## Technology Stack
 
-## How It Works
+- **Frontend**: HTML5, CSS3, JavaScript, Chart.js
+- **Backend**: Node.js, Express
+- **Database**: PostgreSQL
+- **Network Tools**: System traceroute command
 
-1. **Ping Monitoring**: The backend uses a job queue to periodically ping configured targets and store results in the database.
-2. **Traceroute**: When a new target is added, a traceroute is performed and results are stored.
-3. **Real-time Updates**: WebSocket connections push updates to connected clients.
-4. **Data Visualization**: The frontend displays real-time charts and tables.
-5. **NocoDB Integration**: NocoDB connects directly to the PostgreSQL database to provide additional data management capabilities.
+## Contributing
 
-## Future Enhancements
+Contributions are welcome! Please feel free to submit issues or pull requests.
 
-- Authentication and user management
-- Alerting system (email, SMS, etc.)
-- More advanced data analysis and filtering
-- Mobile-responsive design
-- Export capabilities
-- Historical data analysis
+## License
+
+[Your License Here]
+
+## Repository
+
+https://github.com/whitespring/pingplotter
