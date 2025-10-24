@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   pingplotter:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: netsaver/pingplotter:latest
     container_name: pingplotter
     ports:
       - "9911:9911"
@@ -17,30 +15,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    networks:
-      - pingplotter-network
-
-  # Optional: PostgreSQL for testing
-  # Uncomment if you don't have an external database
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: pingplotter-db
-  #   environment:
-  #     - POSTGRES_DB=pingplot
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=password
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #     - ../src/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-  #   restart: always
-  #   networks:
-  #     - pingplotter-network
-
-networks:
-  pingplotter-network:
-    driver: bridge
-
-# volumes:
-#   postgres-data:
+    # Required for traceroute to work properly
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
