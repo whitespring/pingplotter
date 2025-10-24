@@ -57,30 +57,40 @@ The easiest way to run PingPlotter is using Docker. Pre-built multi-architecture
 
 #### Using Docker Compose (with Dockge or Standalone)
 
-1. **Create a docker-compose.yml file:**
+1. **Copy the sample environment file:**
 
-```yaml
-version: '3.8'
-
-services:
-  pingplotter:
-    image: netsaver/pingplotter:latest
-    container_name: pingplotter
-    ports:
-      - "9911:9911"
-    environment:
-      - DATABASE_URL=postgresql://user:password@your-db-host:5432/pingplot
-      - PORT=9911
-      - NODE_ENV=production
-    restart: always
+```bash
+cd docker
+cp sample.env .env
 ```
 
-2. **Configure your database:**
-   - Update the `DATABASE_URL` with your PostgreSQL connection details
-   - The database must be accessible from the container
-   - Use `host.docker.internal` for databases on the same machine
+2. **Edit the .env file with your database credentials:**
 
-3. **Start the container:**
+```env
+DATABASE_URL=postgresql://user:password@your-db-host:5432/pingplot
+PORT=9911
+NODE_ENV=production
+```
+
+**Tips for DATABASE_URL:**
+- Local PostgreSQL: `postgresql://postgres:password@localhost:5432/pingplot`
+- Docker network: `postgresql://postgres:password@postgres:5432/pingplot`
+- Same host: `postgresql://postgres:password@host.docker.internal:5432/pingplot`
+- Remote: `postgresql://user:password@192.168.1.100:5432/pingplot`
+
+3. **Use the provided docker-compose files:**
+
+For Dockge deployment, use `docker-compose.dockge.yml`:
+```bash
+docker-compose -f docker-compose.dockge.yml up -d
+```
+
+For local development with build, use `docker-compose.yml`:
+```bash
+docker-compose up -d
+```
+
+4. **Start the container:**
 
 ```bash
 docker-compose up -d

@@ -8,10 +8,8 @@ services:
     container_name: pingplotter
     ports:
       - "9911:9911"
-    environment:
-      - PORT=9911
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:password@host.docker.internal:5432/pingplot
+    env_file:
+      - .env
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9911/health"]

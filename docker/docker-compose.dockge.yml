@@ -6,12 +6,8 @@ services:
     container_name: pingplotter
     ports:
       - "9911:9911"
-    environment:
-      # Required: PostgreSQL connection string
-      - DATABASE_URL=postgresql://user:password@your-db-host:5432/pingplot
-      # Port configuration
-      - PORT=9911
-      - NODE_ENV=production
+    env_file:
+      - .env
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9911/health"]
