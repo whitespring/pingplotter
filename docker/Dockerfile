@@ -35,7 +35,7 @@ COPY --from=builder /app/node_modules ./node_modules
 
 # Copy application files
 COPY src/monitor-backend.js ./
-COPY src/pingplotter.html ./public/
+COPY src/pingplotter.html ./public/index.html
 COPY src/schema.sql ./
 
 # Change ownership to nodejs user
