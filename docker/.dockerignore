@@ -1,0 +1,38 @@
+# Node modules (will be installed in container)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+README.md
+*.md
+
+# Scripts
+scripts/
+
+# Environment files (use Docker env vars instead)
+.env
+*.env
+
+# System files
+.DS_Store
+Thumbs.db
+
+# PRD files
+PRD.json
+PRD_min.json
+
+# IDE
+.vscode/
+.idea/
+
+# Docker files
+docker/
+Dockerfile
+docker-compose*.yml
+.dockerignore

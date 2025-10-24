@@ -885,6 +885,18 @@
     </div>
     
     <script>
+        // API Configuration - Auto-detect based on how the app is loaded
+        const API_BASE_URL = (() => {
+            // If loaded via file:// protocol, use localhost:3002
+            if (window.location.protocol === 'file:') {
+                return 'http://localhost:3002';
+            }
+            // If served through the backend, use same origin
+            return window.location.origin;
+        })();
+        
+        console.log('API Base URL:', API_BASE_URL);
+        
         // Configuration
         let TRACE_INTERVAL = 5000; // 5 seconds (can be changed by user)
         const MAX_SAMPLES = 100;
@@ -1013,7 +1025,7 @@
         // Run traceroute for single target
         async function runTraceroute(targetId, targetUrl) {
             try {
-                const response = await fetch(`http://localhost:3002/api/traceroute/${targetUrl}`);
+                const response = await fetch(`${API_BASE_URL}/api/traceroute/${targetUrl}`);
                 if (!response.ok) throw new Error('Traceroute failed');
                 
                 const data = await response.json();
@@ -1371,7 +1383,7 @@
             const backendEl = document.getElementById('backendStatus');
             
             try {
-                const response = await fetch('http://localhost:3002/health');
+                const response = await fetch(`${API_BASE_URL}/health`);
                 if (response.ok) {
                     backendEl.textContent = 'Connected';
                     backendEl.style.color = '#28a745';
@@ -1391,7 +1403,7 @@
             const toggleBtn = document.getElementById('dbLoggingToggle');
             
             try {
-                const response = await fetch('http://localhost:3002/api/database/status');
+                const response = await fetch(`${API_BASE_URL}/api/database/status`);
                 const data = await response.json();
                 
                 if (data.connected) {
@@ -1423,11 +1435,11 @@
         // Toggle database logging
         async function toggleDatabaseLogging() {
             try {
-                const statusResponse = await fetch('http://localhost:3002/api/database/status');
+                const statusResponse = await fetch(`${API_BASE_URL}/api/database/status`);
                 const statusData = await statusResponse.json();
                 const newState = !statusData.logging_enabled;
                 
-                const response = await fetch('http://localhost:3002/api/database/logging', {
+                const response = await fetch(`${API_BASE_URL}/api/database/logging`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ enabled: newState })
@@ -1477,7 +1489,7 @@
             const maxLatency = document.getElementById('dbMaxLatency').value;
             
             try {
-                let url = `http://localhost:3002/api/anomalies?hours=${hours}&limit=500`;
+                let url = `${API_BASE_URL}/api/anomalies?hours=${hours}&limit=500`;
                 if (issueType) url += `&issue_type=${issueType}`;
                 if (target) url += `&target=${encodeURIComponent(target)}`;
                 if (minLatency) url += `&min_latency=${minLatency}`;
@@ -1622,7 +1634,7 @@
         async function updateDatabaseCharts() {
             // Get hop statistics
             try {
-                const response = await fetch('http://localhost:3002/api/hop-stats?limit=10');
+                const response = await fetch(`${API_BASE_URL}/api/hop-stats?limit=10`);
                 const data = await response.json();
                 
                 // Group by target
@@ -1784,7 +1796,7 @@
             const hours = document.getElementById('dbTimeRange').value;
             
             try {
-                const response = await fetch(`http://localhost:3002/api/cross-target-hop-analysis?hours=${hours}&min_targets=2`);
+                const response = await fetch(`${API_BASE_URL}/api/cross-target-hop-analysis?hours=${hours}&min_targets=2`);
                 if (!response.ok) throw new Error('Failed to fetch cross-target data');
                 
                 const data = await response.json();
@@ -1940,7 +1952,7 @@
             
             try {
                 const response = await fetch(
-                    `http://localhost:3002/api/database/cleanup?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`,
+                    `${API_BASE_URL}/api/database/cleanup?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`,
                     { method: 'DELETE' }
                 );
                 

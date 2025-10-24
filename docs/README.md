@@ -40,27 +40,105 @@ A real-time network monitoring and traceroute visualization tool with anomaly de
 
 ## Prerequisites
 
+### Option 1: Docker (Recommended)
+- Docker and Docker Compose
+- PostgreSQL database (external or via Docker)
+
+### Option 2: Local Installation
 - Node.js (v14 or higher)
 - PostgreSQL database
 - macOS, Linux, or Windows
 
 ## Installation
 
-### 1. Clone the Repository
+### Docker Deployment (Recommended)
+
+The easiest way to run PingPlotter is using Docker. Pre-built multi-architecture images are available on Docker Hub.
+
+#### Using Docker Compose (with Dockge or Standalone)
+
+1. **Create a docker-compose.yml file:**
+
+```yaml
+version: '3.8'
+
+services:
+  pingplotter:
+    image: netsaver/pingplotter:latest
+    container_name: pingplotter
+    ports:
+      - "9911:9911"
+    environment:
+      - DATABASE_URL=postgresql://user:password@your-db-host:5432/pingplot
+      - PORT=9911
+      - NODE_ENV=production
+    restart: always
+```
+
+2. **Configure your database:**
+   - Update the `DATABASE_URL` with your PostgreSQL connection details
+   - The database must be accessible from the container
+   - Use `host.docker.internal` for databases on the same machine
+
+3. **Start the container:**
+
+```bash
+docker-compose up -d
+```
+
+4. **Access PingPlotter:**
+   - Open your browser to `http://localhost:9911`
+   - The frontend is served directly by the backend
+
+#### Using Docker CLI
+
+```bash
+docker run -d \
+  --name pingplotter \
+  -p 9911:9911 \
+  -e DATABASE_URL=postgresql://user:password@your-db-host:5432/pingplot \
+  -e PORT=9911 \
+  --restart always \
+  netsaver/pingplotter:latest
+```
+
+#### Supported Architectures
+
+The Docker image supports:
+- **linux/amd64** - Intel/AMD 64-bit processors
+- **linux/arm64** - ARM 64-bit processors (Raspberry Pi, Apple Silicon, etc.)
+
+#### Environment Variables
+
+- `PORT` - Server port (default: 9911)
+- `DATABASE_URL` - PostgreSQL connection string (**required**)
+- `NODE_ENV` - Environment mode (default: production)
+
+#### Docker Hub
+
+Pre-built images: [netsaver/pingplotter](https://hub.docker.com/r/netsaver/pingplotter)
+
+Tags:
+- `latest` - Latest stable version
+- `v1.0.0` - Specific version
+
+### Local Installation
+
+#### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/whitespring/pingplotter.git
 cd pingplotter
 ```
 
-### 2. Install Dependencies
+#### 2. Install Dependencies
 
 ```bash
 cd src
 npm install
 ```
 
-### 3. Set Up Database
+#### 3. Set Up Database
 
 Create a PostgreSQL database and run the schema:
 
@@ -70,7 +148,7 @@ psql -U postgres -d your_database < schema.sql
 
 See [DATABASE-SETUP.md](DATABASE-SETUP.md) for detailed instructions.
 
-### 4. Configure Environment
+#### 4. Configure Environment
 
 Edit `src/.env` (or create it) with your database connection:
 
@@ -78,7 +156,7 @@ Edit `src/.env` (or create it) with your database connection:
 DATABASE_URL=postgresql://postgres:password@localhost:5432/pingplot
 ```
 
-### 5. Start the Backend
+#### 5. Start the Backend
 
 ```bash
 # From project root
@@ -89,7 +167,7 @@ cd src
 node monitor-backend.js
 ```
 
-### 6. Open the Frontend
+#### 6. Open the Frontend
 
 Open `src/pingplotter.html` in your web browser, or use:
 
@@ -97,7 +175,57 @@ Open `src/pingplotter.html` in your web browser, or use:
 open src/pingplotter.html  # macOS
 ```
 
-## Quick Start Scripts
+## Building Docker Image
+
+To build your own Docker image:
+
+### Prerequisites
+- Docker with buildx support
+- Docker Hub account (for pushing)
+
+### Build Scripts
+
+**Unix/macOS:**
+```bash
+# Build and push multi-architecture image
+cd docker
+./scripts/build-and-push.sh
+
+# Build specific version
+./scripts/build-and-push.sh v1.0.0
+```
+
+**Windows:**
+```cmd
+cd docker
+scripts\build-and-push.bat
+
+REM Build specific version
+scripts\build-and-push.bat v1.0.0
+```
+
+The build script will:
+1. Create a buildx builder if needed
+2. Build for AMD64 and ARM64 architectures
+3. Push to Docker Hub automatically
+4. Tag as both `latest` and your specified version
+
+### Manual Build
+
+```bash
+# Build for local testing (single architecture)
+docker build -f docker/Dockerfile -t pingplotter .
+
+# Build and push multi-architecture
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t netsaver/pingplotter:latest \
+  -f docker/Dockerfile \
+  --push \
+  .
+```
+
+## Quick Start Scripts (Local Installation)
 
 ### Unix/macOS
 ```bash

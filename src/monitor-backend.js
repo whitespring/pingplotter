@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const { Pool } = require('pg');
@@ -7,11 +8,14 @@ const { Pool } = require('pg');
 const execPromise = promisify(exec);
 
 const app = express();
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
 
 // Enable CORS for browser access
 app.use(cors());
 app.use(express.json());
+
+// Serve static files (frontend)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // PostgreSQL connection pool
 const pool = new Pool({
