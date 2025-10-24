@@ -213,19 +213,15 @@ function trackHopStatistics(target, hops) {
     const minute = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0);
     
     hops.forEach(hop => {
-        // Skip hops without IP addresses (they're likely just routers that don't respond to ICMP)
-        if (!hop.ip || hop.ip === '*') {
-            return;
-        }
-        
-        const key = `${target}:${hop.hop}:${hop.ip}:${minute.getTime()}`;
+        // Track by hop number only (not IP) to capture all attempts including timeouts
+        const key = `${target}:${hop.hop}:${minute.getTime()}`;
         
         if (!hopStatsBuffer.has(key)) {
             hopStatsBuffer.set(key, {
                 target,
                 hop_number: hop.hop,
-                hop_ip: hop.ip,
-                hop_hostname: hop.hostname !== 'Request timed out' ? hop.hostname : null,
+                hop_ip: null,  // Will be set to first valid IP we see
+                hop_hostname: null,  // Will be set to first valid hostname we see
                 timestamp_minute: minute,
                 total_attempts: 0,
                 total_losses: 0,
@@ -234,6 +230,15 @@ function trackHopStatistics(target, hops) {
         }
         
         const stats = hopStatsBuffer.get(key);
+        
+        // Update IP/hostname with first valid value we see (for display purposes)
+        if (hop.ip && hop.ip !== '*' && !stats.hop_ip) {
+            stats.hop_ip = hop.ip;
+            if (hop.hostname !== 'Request timed out') {
+                stats.hop_hostname = hop.hostname;
+            }
+        }
+        
         stats.total_attempts++;
         
         if (hop.timeout || hop.latency === null) {
