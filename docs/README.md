@@ -116,11 +116,21 @@ The Docker image supports:
 
 #### Docker Hub
 
-Pre-built images: [netsaver/pingplotter](https://hub.docker.com/r/netsaver/pingplotter)
+**🎉 Live and Ready!** Pre-built multi-architecture images are available:
 
-Tags:
-- `latest` - Latest stable version
-- `v1.0.0` - Specific version
+**Docker Hub**: https://hub.docker.com/r/netsaver/pingplotter
+
+**Pull Command:**
+```bash
+docker pull netsaver/pingplotter:latest
+```
+
+**Available Tags:**
+- `latest` - Latest stable version (recommended)
+
+**Supported Platforms:**
+- linux/amd64 (Intel/AMD 64-bit)
+- linux/arm64 (ARM 64-bit, Raspberry Pi, Apple Silicon)
 
 ### Local Installation
 
