@@ -39,15 +39,16 @@ pkill -f "node monitor-backend.js" 2>/dev/null
 # Wait a moment for the process to stop
 sleep 1
 
-# Start the backend server in the background
+# Navigate to src directory and start the backend server in the background
 echo "🚀 Starting backend server..."
+cd src
 node monitor-backend.js &
 BACKEND_PID=$!
 
 # Wait for backend to be ready (max 10 seconds)
 echo "⏳ Waiting for backend to start..."
 for i in {1..20}; do
-    if curl -s http://localhost:3002/health > /dev/null 2>&1; then
+    if curl -s http://localhost:9911/health > /dev/null 2>&1; then
         echo "✓ Backend server is running (PID: $BACKEND_PID)"
         break
     fi
@@ -63,24 +64,23 @@ echo ""
 echo "🌐 Opening PingPlotter in browser..."
 sleep 1
 
-# Open the HTML file in the default browser
+# Open the application in the default browser
 if command -v open &> /dev/null; then
     # macOS
-    open pingplotter.html
+    open http://localhost:9911
 elif command -v xdg-open &> /dev/null; then
     # Linux
-    xdg-open pingplotter.html
+    xdg-open http://localhost:9911
 else
     echo "⚠️  Could not open browser automatically"
-    echo "Please open pingplotter.html manually"
+    echo "Please open http://localhost:9911 manually in your browser"
 fi
 
 echo ""
 echo "╔════════════════════════════════════════════════╗"
 echo "║           PingPlotter is now running!          ║"
 echo "║                                                ║"
-echo "║  Backend:  http://localhost:3002               ║"
-echo "║  Frontend: pingplotter.html (opened)           ║"
+echo "║  Backend & Frontend: http://localhost:9911    ║"
 echo "║                                                ║"
 echo "║  Press Ctrl+C to stop the backend server       ║"
 echo "╚════════════════════════════════════════════════╝"
