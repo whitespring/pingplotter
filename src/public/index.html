@@ -913,16 +913,132 @@
         let TRACE_INTERVAL = 5000; // 5 seconds (can be changed by user)
         const MAX_SAMPLES = 100;
         
-        // State
-        let targets = [
-            { id: 1, url: 'vodafone.de', name: 'vodafone.de', selected: true },
-            { id: 2, url: 'google.com', name: 'google.com', selected: false },
-            { id: 3, url: '1.1.1.1', name: 'Cloudflare DNS (1.1.1.1)', selected: false }
-        ];
+        // State - loaded from server
+        let targets = []; // Will be loaded from server
+        let appConfig = {}; // Will be loaded from server
         let targetDataMap = new Map(); // targetId -> { hopData, stats, selectedHop }
         let monitoringInterval = null;
         let isMonitoring = false;
-        let nextTargetId = 4;
+        let configLoaded = false; // Track if config is loaded
+        let nextTargetId = 1; // Will be set when loading config from server
+
+        // Load configuration from server
+        async function loadConfigurationFromServer() {
+            try {
+                console.log('Loading configuration from server...');
+                const response = await fetch(`${API_BASE_URL}/api/config`);
+                if (!response.ok) throw new Error('Failed to load configuration');
+
+                const config = await response.json();
+                appConfig = config.app_config || {};
+                targets = config.targets || [];
+                configLoaded = true;
+
+                // Set nextTargetId based on existing targets
+                nextTargetId = targets.length > 0 ? Math.max(...targets.map(t => t.id)) + 1 : 1;
+
+                console.log('Configuration loaded:', config);
+
+                // Apply configuration to UI
+                applyConfigurationToUI();
+
+                return true;
+            } catch (error) {
+                console.error('Failed to load configuration:', error);
+
+                // Fallback to defaults if server is unavailable
+                if (!configLoaded) {
+                    console.log('Using fallback configuration');
+                    appConfig = { trace_interval: '5000', monitoring_enabled: 'true', selected_target_id: '1' };
+                    targets = [
+                        { id: 1, url: 'vodafone.de', name: 'vodafone.de', selected: true },
+                        { id: 2, url: 'google.com', name: 'google.com', selected: false },
+                        { id: 3, url: '1.1.1.1', name: 'Cloudflare DNS (1.1.1.1)', selected: false }
+                    ];
+                    nextTargetId = 4;
+                    targets.forEach(target => initTargetData(target.id));
+                    configLoaded = true;
+                }
+                return false;
+            }
+        }
+
+        // Save current configuration to server
+        async function saveConfigurationToServer() {
+            if (!configLoaded) return;
+
+            try {
+                // Update app config with current UI state
+                updateAppConfigFromUI();
+
+                const config = {
+                    app_config: appConfig,
+                    targets: targets
+                };
+
+                const response = await fetch(`${API_BASE_URL}/api/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                if (!response.ok) throw new Error('Failed to save configuration');
+
+                const result = await response.json();
+                console.log('Configuration saved:', result);
+                return true;
+            } catch (error) {
+                console.error('Failed to save configuration:', error);
+                return false;
+            }
+        }
+
+        // Update app config from current UI state
+        function updateAppConfigFromUI() {
+            const intervalValue = document.getElementById('intervalSelect').value;
+            appConfig.trace_interval = (parseInt(intervalValue) * 1000).toString();
+
+            appConfig.monitoring_enabled = isMonitoring.toString();
+
+            const selectedTarget = targets.find(t => t.selected);
+            if (selectedTarget) {
+                appConfig.selected_target_id = selectedTarget.id.toString();
+            }
+        }
+
+        // Apply configuration to UI
+        function applyConfigurationToUI() {
+            // Apply trace interval
+            if (appConfig.trace_interval) {
+                const intervalSeconds = Math.round(parseFloat(appConfig.trace_interval) / 1000);
+                const select = document.getElementById('intervalSelect');
+                const option = Array.from(select.options).find(opt => parseInt(opt.value) === intervalSeconds);
+                if (option) select.value = option.value;
+                TRACE_INTERVAL = parseFloat(appConfig.trace_interval);
+            }
+
+            // Apply monitoring state if configured
+            if (appConfig.monitoring_enabled && appConfig.monitoring_enabled === 'true') {
+                // Will auto-start after config loads
+                setTimeout(() => {
+                    if (!isMonitoring) startMonitoring();
+                }, 1000);
+            }
+
+            // Select appropriate target
+            if (appConfig.selected_target_id && targets.length > 0) {
+                const targetId = parseInt(appConfig.selected_target_id);
+                const target = targets.find(t => t.id === targetId);
+                if (target) {
+                    selectTarget(targetId);
+                } else if (targets.length > 0) {
+                    // Fallback to first target
+                    selectTarget(targets[0].id);
+                }
+            }
+
+            console.log('Configuration applied to UI');
+        }
         
         // Chart setup
         const ctx = document.getElementById('timelineChart').getContext('2d');
@@ -2142,20 +2258,31 @@
             }
         }
         
-        // Initialize
-        targets.forEach(target => initTargetData(target.id));
-        updateTargetList();
-        updateSelectedTargetView();
-        
+        // Initialize application
+        async function initializeApp() {
+            try {
+                // Load configuration from server first
+                await loadConfigurationFromServer();
+
+                // Initialize target data for all loaded targets
+                targets.forEach(target => initTargetData(target.id));
+
+                // Update UI with loaded configuration
+                updateTargetList();
+                updateMonitoringUI();
+
+            } catch (error) {
+                console.error('Failed to initialize app:', error);
+            }
+        }
+
         // Check connection status on load and every 5 seconds
         checkConnectionStatus();
         setInterval(checkConnectionStatus, 5000);
-        
-        // Auto-start monitoring
+
+        // Initialize app when DOM is ready
         window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                startMonitoring();
-            }, 500);
+            initializeApp();
         });
     </script>
 </body>

@@ -104,9 +104,48 @@ WHERE eh.is_problematic = true
 GROUP BY eh.hop_number, eh.hostname, eh.ip_address, ne.target
 ORDER BY problem_count DESC;
 
+-- Configuration tables for server-side persistence
+CREATE TABLE app_config (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(100) UNIQUE NOT NULL,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE monitored_targets (
+    id INTEGER PRIMARY KEY,
+    url VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    selected BOOLEAN DEFAULT FALSE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for configuration tables
+CREATE INDEX IF NOT EXISTS idx_app_config_key ON app_config (key);
+CREATE INDEX IF NOT EXISTS idx_monitored_targets_selected ON monitored_targets (selected);
+CREATE INDEX IF NOT EXISTS idx_monitored_targets_sort_order ON monitored_targets (sort_order);
+
+-- Insert default configuration values
+INSERT INTO app_config (key, value) VALUES
+    ('trace_interval', '5000'),
+    ('monitoring_enabled', 'true'),
+    ('selected_target_id', '1')
+ON CONFLICT (key) DO NOTHING;
+
+-- Insert default monitored targets
+INSERT INTO monitored_targets (id, url, name, selected, sort_order) VALUES
+    (1, 'vodafone.de', 'vodafone.de', true, 1),
+    (2, 'google.com', 'google.com', false, 2),
+    (3, '1.1.1.1', 'Cloudflare DNS (1.1.1.1)', false, 3)
+ON CONFLICT (id) DO NOTHING;
+
 -- Comments for documentation
 COMMENT ON TABLE network_events IS 'Stores network anomaly events (high latency >200ms, timeouts, packet loss)';
 COMMENT ON TABLE event_hops IS 'Stores complete hop-by-hop traceroute data for each anomaly event';
 COMMENT ON COLUMN network_events.issue_type IS 'Type of issue: high_latency (>200ms), timeout, or packet_loss';
 COMMENT ON COLUMN network_events.problematic_hop IS 'The hop number where the problem was detected';
 COMMENT ON COLUMN event_hops.is_problematic IS 'TRUE if this hop was identified as the source of the problem';
+COMMENT ON TABLE app_config IS 'Global application configuration settings';
+COMMENT ON TABLE monitored_targets IS 'Persistent list of targets to monitor with their configuration';

@@ -899,10 +899,242 @@ app.post('/api/database/logging', (req, res) => {
     });
 });
 
+// Configuration API endpoints
+
+// Get full application configuration
+app.get('/api/config', async (req, res) => {
+    try {
+        // Get app settings
+        const configResult = await pool.query(
+            'SELECT key, value FROM app_config ORDER BY key'
+        );
+        const appConfig = {};
+        configResult.rows.forEach(row => {
+            appConfig[row.key] = row.value;
+        });
+
+        // Get monitored targets
+        const targetsResult = await pool.query(
+            'SELECT id, url, name, selected, sort_order FROM monitored_targets ORDER BY sort_order, id'
+        );
+
+        const config = {
+            app_config: appConfig,
+            targets: targetsResult.rows,
+            last_updated: new Date().toISOString()
+        };
+
+        res.json(config);
+    } catch (error) {
+        console.error('Failed to load configuration:', error);
+        res.status(500).json({
+            error: 'Failed to load configuration',
+            message: error.message
+        });
+    }
+});
+
+// Save full application configuration
+app.post('/api/config', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const { app_config, targets } = req.body;
+
+        // Update app configuration
+        if (app_config) {
+            for (const [key, value] of Object.entries(app_config)) {
+                await client.query(
+                    `INSERT INTO app_config (key, value) VALUES ($1, $2)
+                     ON CONFLICT (key) DO UPDATE SET
+                        value = EXCLUDED.value,
+                        updated_at = NOW()`,
+                    [key, value]
+                );
+            }
+        }
+
+        // Update targets
+        if (targets && Array.isArray(targets)) {
+            // Clear existing targets
+            await client.query('DELETE FROM monitored_targets');
+
+            // Insert new targets
+            for (const target of targets) {
+                await client.query(
+                    `INSERT INTO monitored_targets (id, url, name, selected, sort_order)
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [target.id, target.url, target.name, target.selected || false, target.sort_order || 0]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+
+        console.log('Configuration saved successfully');
+        res.json({
+            success: true,
+            message: 'Configuration saved successfully',
+            saved_at: new Date().toISOString()
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Failed to save configuration:', error);
+        res.status(500).json({
+            error: 'Failed to save configuration',
+            message: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// Reset configuration to defaults
+app.put('/api/config/reset', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Reset app config to defaults
+        await client.query(`
+            INSERT INTO app_config (key, value) VALUES
+                ('trace_interval', '5000'),
+                ('monitoring_enabled', 'true'),
+                ('selected_target_id', '1')
+            ON CONFLICT (key) DO UPDATE SET
+                value = EXCLUDED.value,
+                updated_at = NOW()`
+        );
+
+        // Reset targets to defaults
+        await client.query('DELETE FROM monitored_targets');
+        await client.query(`
+            INSERT INTO monitored_targets (id, url, name, selected, sort_order) VALUES
+                (1, 'vodafone.de', 'vodafone.de', true, 1),
+                (2, 'google.com', 'google.com', false, 2),
+                (3, '1.1.1.1', 'Cloudflare DNS (1.1.1.1)', false, 3)`
+        );
+
+        await client.query('COMMIT');
+
+        console.log('Configuration reset to defaults');
+        res.json({
+            success: true,
+            message: 'Configuration reset to defaults',
+            reset_at: new Date().toISOString()
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Failed to reset configuration:', error);
+        res.status(500).json({
+            error: 'Failed to reset configuration',
+            message: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// Add new target
+app.post('/api/targets', async (req, res) => {
+    try {
+        const { url, name } = req.body;
+
+        if (!url || !name) {
+            return res.status(400).json({ error: 'URL and name are required' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO monitored_targets (url, name, sort_order)
+             SELECT $1, $2, COALESCE(MAX(sort_order), 0) + 1 FROM monitored_targets
+             RETURNING *`,
+            [url, name]
+        );
+
+        console.log(`Target added: ${name} (${url})`);
+        res.status(201).json({
+            success: true,
+            target: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Failed to add target:', error);
+        res.status(500).json({
+            error: 'Failed to add target',
+            message: error.message
+        });
+    }
+});
+
+// Update target
+app.put('/api/targets/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { url, name, selected, sort_order } = req.body;
+
+        const result = await pool.query(
+            `UPDATE monitored_targets
+             SET url = $1, name = $2, selected = $3, sort_order = $4, updated_at = NOW()
+             WHERE id = $5
+             RETURNING *`,
+            [url, name, selected, sort_order, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Target not found' });
+        }
+
+        console.log(`Target updated: ID ${id}`);
+        res.json({
+            success: true,
+            target: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Failed to update target:', error);
+        res.status(500).json({
+            error: 'Failed to update target',
+            message: error.message
+        });
+    }
+});
+
+// Delete target
+app.delete('/api/targets/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+
+        const result = await pool.query(
+            'DELETE FROM monitored_targets WHERE id = $1 RETURNING *',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Target not found' });
+        }
+
+        console.log(`Target deleted: ID ${id}`);
+        res.json({
+            success: true,
+            target: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Failed to delete target:', error);
+        res.status(500).json({
+            error: 'Failed to delete target',
+            message: error.message
+        });
+    }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'ok', 
+    res.json({
+        status: 'ok',
         service: 'connectivity-monitor-backend',
         platform: process.platform
     });
