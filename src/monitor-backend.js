@@ -1,3 +1,5 @@
+const dotenv = require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -695,10 +697,71 @@ app.get('/api/anomaly-timeline', async (req, res) => {
         `, [timeInterval]);
         
         res.json({ timeline: result.rows, count: result.rows.length });
-        
+
     } catch (error) {
         console.error('Get timeline error:', error);
         res.status(500).json({ error: 'Failed to get timeline', message: error.message });
+    }
+});
+
+// Get aggregated statistics over time for diagnostics (latency and packet loss trends)
+app.get('/api/aggregated-stats', async (req, res) => {
+    try {
+        const { hours = 24, interval = 'hour', target } = req.query;
+
+        const validIntervals = ['hour', 'day'];
+        const timeInterval = validIntervals.includes(interval) ? interval : 'hour';
+
+        let query = `
+            SELECT
+                date_trunc($1, timestamp_minute) AS time_bucket,
+                target,
+                hop_number,
+                hop_ip,
+                hop_hostname,
+                AVG(avg_latency) AS avg_latency,
+                MAX(max_latency) AS max_latency,
+                MIN(min_latency) AS min_latency,
+                SUM(total_attempts) AS total_attempts,
+                SUM(total_losses) AS total_losses,
+                CASE
+                    WHEN SUM(total_attempts) > 0
+                    THEN (SUM(total_losses)::NUMERIC / SUM(total_attempts)::NUMERIC * 100)
+                    ELSE 0
+                END AS packet_loss_pct
+            FROM hop_statistics
+            WHERE timestamp_minute > NOW() - INTERVAL '${parseInt(hours)} hours'
+        `;
+
+        const params = [timeInterval];
+        let paramIndex = 1;
+
+        if (target) {
+            paramIndex++;
+            query += ` AND target = $${paramIndex}`;
+            params.push(target);
+        }
+
+        query += `
+            GROUP BY time_bucket, target, hop_number, hop_ip, hop_hostname
+            ORDER BY time_bucket DESC, target ASC, hop_number ASC
+        `;
+
+        const result = await pool.query(query, params);
+
+        res.json({
+            aggregated_stats: result.rows,
+            count: result.rows.length,
+            period_hours: parseInt(hours),
+            interval: timeInterval
+        });
+
+    } catch (error) {
+        console.error('Get aggregated stats error:', error);
+        res.status(500).json({
+            error: 'Failed to get aggregated stats',
+            message: error.message
+        });
     }
 });
 

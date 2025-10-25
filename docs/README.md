@@ -29,13 +29,15 @@ A real-time network monitoring and traceroute visualization tool with anomaly de
 
 ```
 ├── src/
-│   ├── pingplotter.html      # Single-page application (frontend)
+│   ├── public/
+│   │   └── index.html        # Single-page application (frontend)
 │   ├── monitor-backend.js    # Node.js backend server
 │   ├── schema.sql           # PostgreSQL database schema
-│   └── package.json         # Node.js dependencies
+│   ├── package.json          # Node.js dependencies
+│   └── .env                  # Environment configuration
 ├── scripts/                  # Start/stop scripts
 ├── docs/                     # Documentation
-└── .gitignore
+└── docker/                   # Docker configuration
 ```
 
 ## Prerequisites
@@ -187,12 +189,17 @@ cd src
 node monitor-backend.js
 ```
 
-#### 6. Open the Frontend
+#### 6. Access the Application
 
-Open `src/pingplotter.html` in your web browser, or use:
+The application will be running at `http://localhost:9911`. Open your web browser to:
 
 ```bash
-open src/pingplotter.html  # macOS
+http://localhost:9911  # Frontend served by backend
+```
+
+or use:
+```bash
+open http://localhost:9911  # macOS
 ```
 
 ## Building Docker Image

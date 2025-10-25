@@ -837,6 +837,18 @@
                 <canvas id="delayDistChart" style="max-height: 250px;"></canvas>
             </div>
         </div>
+
+        <!-- Trend Charts -->
+        <div class="db-charts" style="margin-top: 20px;">
+            <div class="chart-card">
+                <h3>Latency Trends Over Time</h3>
+                <canvas id="latencyTrendsChart" style="max-height: 250px;"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Packet Loss Trends Over Time</h3>
+                <canvas id="packetLossTrendsChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
         
         <!-- Cross-Target Hop Analysis -->
         <div class="db-table-container">
@@ -1457,12 +1469,14 @@
         }
         
         // ==================== DATABASE ANALYSIS TAB ====================
-        
+
         let dbData = [];
         let dbSortColumn = 'timestamp';
         let dbSortDirection = 'desc';
         let hopsByTargetChart = null;
         let delayDistChart = null;
+        let latencyTrendsChart = null;
+        let packetLossTrendsChart = null;
         
         // Switch tabs
         function switchTab(tabName) {
@@ -1782,11 +1796,169 @@
             } catch (error) {
                 console.error('Failed to update charts:', error);
             }
-            
-            // Load cross-target hop analysis
-            await loadCrossTargetAnalysis();
+
+            // Load trend charts (latency and packet loss over time)
+            await loadTrendCharts();
+
+        // Load trend charts (latency and packet loss over time)
+        await loadTrendCharts();
+
+        // Load cross-target hop analysis
+        await loadCrossTargetAnalysis();
         }
         
+        // Load trend charts function
+        async function loadTrendCharts() {
+            const hours = document.getElementById('dbTimeRange').value;
+            const target = document.getElementById('dbTargetFilter').value;
+            const interval = 'hour'; // Use hour intervals for trends
+
+            try {
+                let url = `${API_BASE_URL}/api/aggregated-stats?hours=${hours}&interval=${interval}`;
+                if (target) url += `&target=${encodeURIComponent(target)}`;
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch aggregated stats');
+
+                const data = await response.json();
+                const stats = data.aggregated_stats;
+
+                // Process data for charts - group by time buckets
+                const latencyMap = new Map();
+                const packetLossMap = new Map();
+
+                stats.forEach(stat => {
+                    const key = stat.time_bucket;
+                    const latency = stat.avg_latency;
+                    const packetLoss = stat.packet_loss_pct;
+
+                    if (!latencyMap.has(key)) {
+                        latencyMap.set(key, []);
+                        packetLossMap.set(key, []);
+                    }
+
+                    if (latency !== null) latencyMap.get(key).push(latency);
+                    if (packetLoss !== null) packetLossMap.get(key).push(packetLoss);
+                });
+
+                // Create data for charts - take averages per time bucket
+                const timeBuckets = Array.from(latencyMap.keys()).sort((a, b) => new Date(a) - new Date(b));
+                const latencyData = timeBuckets.map(bucket => {
+                    const latencies = latencyMap.get(bucket);
+                    return latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : null;
+                });
+                const packetLossData = timeBuckets.map(bucket => {
+                    const losses = packetLossMap.get(bucket);
+                    return losses.length > 0 ? losses.reduce((a, b) => a + b, 0) / losses.length : null;
+                });
+
+                // Format time labels
+                const labels = timeBuckets.map(bucket => new Date(bucket).toLocaleString());
+
+                // Update Latency Trends Chart
+                const ctx1 = document.getElementById('latencyTrendsChart').getContext('2d');
+                if (latencyTrendsChart) {
+                    latencyTrendsChart.destroy();
+                }
+
+                latencyTrendsChart = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Average Latency (ms)',
+                            data: latencyData,
+                            borderColor: '#4a9eff',
+                            backgroundColor: 'rgba(74, 158, 255, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            tension: 0.2,
+                            spanGaps: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Latency (ms)', color: '#999' },
+                                grid: { color: '#333' },
+                                ticks: { color: '#999' }
+                            },
+                            x: {
+                                title: { display: true, text: 'Time', color: '#999' },
+                                grid: { color: '#333' },
+                                ticks: { color: '#999', maxRotation: 45, maxTicksLimit: 10 }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff'
+                            }
+                        }
+                    }
+                });
+
+                // Update Packet Loss Trends Chart
+                const ctx2 = document.getElementById('packetLossTrendsChart').getContext('2d');
+                if (packetLossTrendsChart) {
+                    packetLossTrendsChart.destroy();
+                }
+
+                packetLossTrendsChart = new Chart(ctx2, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Average Packet Loss (%)',
+                            data: packetLossData,
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            tension: 0.2,
+                            spanGaps: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Packet Loss (%)', color: '#999' },
+                                grid: { color: '#333' },
+                                ticks: { color: '#999' }
+                            },
+                            x: {
+                                title: { display: true, text: 'Time', color: '#999' },
+                                grid: { color: '#333' },
+                                ticks: { color: '#999', maxRotation: 45, maxTicksLimit: 10 }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                callbacks: {
+                                    label: (context) => `${context.label}: ${context.parsed.y?.toFixed(2)}%`
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Failed to load trend charts:', error);
+            }
+        }
+
         // Cross-target hop analysis
         let crossTargetData = [];
         let crossTargetSortColumn = 'overall_packet_loss_pct';
